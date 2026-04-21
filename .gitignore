@@ -1,0 +1,9 @@
+*.zip
+*.csv
+*.rrd
+data/
+models/
+repos/
+__pycache__/
+.ipynb_checkpoints/
+client_secrets.json
