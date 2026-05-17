@@ -158,7 +158,7 @@ matplotlib
 ## Installation
 
 ```bash
-git clone https://github.com/username/cobot-assembly-detection
+git clone https://github.com/Elve-ndev/cobot-assembly-detection
 cd cobot-assembly-detection
 pip install -r requirements.txt
 ```
