@@ -133,27 +133,7 @@ Reference: [https://github.com/TimSchoonbeek/IndustReal](https://github.com/TimS
 
 ---
 
-## Repository Structure
 
-```
-project/
-├── notebooks/
-│   ├── 01_slowfast_extraction.ipynb
-│   ├── 02_bigru_preprocessing.ipynb
-│   ├── 03_bigru_training.ipynb
-│   └── 04_viterbi_mahalanobis_eval.ipynb
-├── checkpoints/
-│   ├── meccano_slowfast_mapped_clean.pth
-│   ├── bigru_best_10classes.pth
-│   └── scaler.pkl
-├── data/
-│   ├── stride_map_train.pkl
-│   ├── stride_map_val.pkl
-│   ├── rec_to_file_train.pkl
-│   └── rec_to_file_val.pkl
-├── requirements.txt
-└── README.md
-```
 
 ---
 
