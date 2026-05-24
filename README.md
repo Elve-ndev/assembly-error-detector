@@ -16,7 +16,7 @@
 
 This project addresses a critical challenge in industrial robotics: detecting assembly errors in real time from egocentric video streams. Rather than simply classifying actions, the system evaluates whether each action is correctly performed and positioned within the expected procedure, enabling a cobot to react intelligently at four distinct intervention levels.
 
-The full pipeline integrates state-of-the-art video understanding, sequential modeling, probabilistic decoding, and unsupervised anomaly detection into a unified decision framework.
+The full pipeline integrates state-of-the-art video understanding, sequential modeling, probabilistic decoding, and semi-supervised anomaly detection into a unified multimodal decision framework.
 
 ---
 
@@ -33,17 +33,18 @@ Feature Extraction (blocks.4, 2304-dim)
 Normalization + Outlier Clipping
         |
         v
-BiGRU Dual-Head + Temporal Attention
+BiGRU Dual-Head + Temporal Attention + Residual Blocks
         |-- Head 1 : Action Classification (NON-CRITICAL / CRITICAL)
         |-- Head 2 : Anomaly Score
         |
         v
-Viterbi Decoder
-Learned transition constraints
-        |
-        v
-Mahalanobis Anomaly Detection
-Prototype Bank from GRU hidden states (PCA-64)
+┌─────────────────────────────────────┐
+│  Mahalanobis Prototype Bank (PCA64) │
+│  Semi-supervised Logistic Regression│
+│  Prototype Ratio (Normal/Error)     │
+│  Gaze + Hands multimodal features   │
+│  Temporal Smoothing (W=20)          │
+└─────────────────────────────────────┘
         |
         v
 Cobot Decision Engine
@@ -60,16 +61,18 @@ SlowFast R50 pre-trained on the MECCANO industrial egocentric dataset is used as
 
 ### Semantic Action Grouping
 
-72 fine-grained action classes were systematically analyzed and regrouped into 2 semantically meaningful categories based on industrial risk and visual discriminability, validated through intra/inter-class cosine similarity analysis (ratio 2.75).
+72 fine-grained action classes were analyzed and regrouped into 2 semantically meaningful categories based on industrial risk and visual discriminability, validated through intra/inter-class cosine similarity analysis (ratio 2.75).
 
 | Class | Actions | Industrial Role |
 |-------|---------|----------------|
 | NON-CRITICAL | take, put, pull, check, browse | Preparation and verification |
 | CRITICAL | fit, plug, tighten, loosen, align | Precision assembly — high error risk |
 
-### BiGRU Dual-Head with Temporal Attention and Residual Blocks
+### PSR Error Frame Masking
 
-A bidirectional GRU with temporal attention mechanism and residual connections processes variable-length action sequences. The dual-head architecture simultaneously outputs frame-level action predictions and a continuous anomaly score.
+163 annotated errors across 47 recordings were used to mask erroneous frames during training, ensuring the BiGRU learns exclusively from correctly executed procedures. This produces cleaner Mahalanobis prototypes and improves anomaly detection quality.
+
+### BiGRU Dual-Head with Temporal Attention
 
 ```
 Input projection : Linear(2304, 512) + LayerNorm + GELU + ResidualBlock
@@ -79,17 +82,13 @@ Action Head      : ResidualBlock → Linear(512, 2)
 Anomaly Head     : Linear(1024, 1) + Sigmoid
 ```
 
-### PSR Error Frame Masking
+### Semi-supervised Anomaly Detection
 
-PSR labels with errors (163 annotated errors across 47 recordings) were used to mask erroneous frames during training, ensuring the BiGRU learns exclusively from correctly executed procedures. This produces cleaner Mahalanobis prototypes and improves anomaly detection.
+A semi-supervised Logistic Regression is trained on GRU hidden states (PCA-64) using 1696 annotated error frames and 33,920 normal frames (ratio 1:20). Combined with a prototype ratio score (distance to normal prototype / distance to error prototype) and temporal smoothing (W=20 frames), this achieves robust anomaly detection without requiring error labels at inference time.
 
-### Viterbi Temporal Decoding
+### Multimodal Integration
 
-A Viterbi decoder with a transition matrix learned from training sequences enforces procedural consistency. The highly stable transition matrix (95% self-transition probability) effectively flags sequence deviations as anomalies.
-
-### Mahalanobis Prototype Bank
-
-Class prototypes are built from GRU hidden state representations (1024-dim) of normal training sequences, reduced via PCA-64 (93.3% variance explained). Per-frame Mahalanobis distances provide calibrated anomaly scores without requiring error labels at training time.
+Gaze (x,y coordinates) and hand joint positions (42-dim) from the IndustReal multimodal annotations are aligned with SlowFast feature indices and integrated into the Mahalanobis prototype bank, improving anomaly detection on manipulation errors.
 
 ---
 
@@ -97,30 +96,34 @@ Class prototypes are built from GRU hidden state representations (1024-dim) of n
 
 ### Action Recognition (val set, 2 semantic classes)
 
-| Method | F1 Macro | F1 Weighted |
-|--------|----------|-------------|
-| LinearSVC frame-level | 0.096 | 0.258 |
-| BiGRU 72 classes | 0.097 | — |
-| BiGRU 10 classes | 0.291 | — |
-| BiGRU 3 classes | 0.463 | — |
-| BiGRU 2 classes (final) | 0.663 | 0.701 |
+| Method | Classes | F1 Macro | F1 Weighted |
+|--------|---------|----------|-------------|
+| LinearSVC frame-level | 72 | 0.096 | 0.258 |
+| BiGRU + Attention | 72 | 0.097 | — |
+| BiGRU + Attention | 10 | 0.291 | — |
+| BiGRU + Attention | 3 | 0.463 | — |
+| BiGRU + Attention + PSR masking | 2 | **0.663** | **0.701** |
 
 ### Anomaly Detection (val set, PSR error labels)
 
-| Method | AUC-ROC |
-|--------|---------|
-| Isolation Forest PCA64 | 0.658 |
-| Mahalanobis PCA64 | 0.668 |
-| Mahalanobis per operator | 0.673 |
-| Viterbi log-likelihood | 0.751 |
-| Combined Mahalanobis + Viterbi | 0.768 |
+| Method | AUC-ROC | TPR@FPR=10% |
+|--------|---------|-------------|
+| Mahalanobis RGB PCA64 | 0.668 | 0.560 |
+| Mahalanobis Multimodal | 0.680 | 0.571 |
+| Semi-supervised LR | 0.824 | 0.560 |
+| Prototype Ratio | 0.831 | 0.594 |
+| **Final (Semi + Ratio + W=20)** | **0.853** | **0.679** |
 
-### Error Type Analysis
+### Key Metrics
 
-| Error Type | Frames | AUC-ROC |
-|------------|--------|---------|
-| Incorrectly installed | 124 | 0.604 |
-| Remove (correction) | 705 | 0.676 |
+| Metric | Value |
+|--------|-------|
+| AUC-ROC | 0.853 |
+| TPR @ FPR=5% | 0.560 |
+| TPR @ FPR=10% | 0.679 |
+| TPR @ FPR=20% | 0.760 |
+| Average Precision | 0.321 |
+| Lift over random | 7.53x |
 
 ### Feature Discriminability
 
@@ -138,8 +141,8 @@ Class prototypes are built from GRU hidden state representations (1024-dim) of n
 | Decision | Trigger | Cobot Response |
 |----------|---------|----------------|
 | NORMAL | Low anomaly score, sequence consistent | Continue procedure |
-| MONITOR | Moderate anomaly or BiGRU/Viterbi disagreement | Increase monitoring |
-| PAUSE | Action outside expected sequence | Stop, request confirmation |
+| MONITOR | Moderate anomaly score | Increase monitoring frequency |
+| PAUSE | Elevated anomaly, action outside sequence | Stop, request confirmation |
 | STOP | Critical anomaly score | Full stop, supervisor alert |
 
 ---
@@ -152,10 +155,11 @@ Class prototypes are built from GRU hidden state representations (1024-dim) of n
 |----------|-------|
 | Total recordings | 84 egocentric videos |
 | Operators | 27 participants |
-| Train split | 36 recordings + 32 test recordings |
+| Train+Test split | 68 recordings (22 operators) |
 | Val split | 16 recordings (5 operators, never seen) |
 | Original action classes | 72 → regrouped to 2 |
 | Annotated errors | 163 across 47 recordings |
+| Modalities used | RGB, Gaze, Hands |
 
 Reference: [https://github.com/TimSchoonbeek/IndustReal](https://github.com/TimSchoonbeek/IndustReal)
 
@@ -174,6 +178,7 @@ torchvision
 pytorchvideo
 fvcore
 scikit-learn
+imbalanced-learn
 numpy
 pandas
 tqdm
