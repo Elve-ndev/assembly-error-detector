@@ -34,7 +34,7 @@ Normalization + Outlier Clipping
         |
         v
 BiGRU Dual-Head + Temporal Attention
-        |-- Head 1 : Action Classification
+        |-- Head 1 : Action Classification (NON-CRITICAL / CRITICAL)
         |-- Head 2 : Anomaly Score
         |
         v
@@ -43,7 +43,7 @@ Learned transition constraints
         |
         v
 Mahalanobis Anomaly Detection
-Prototype Bank from GRU hidden states
+Prototype Bank from GRU hidden states (PCA-64)
         |
         v
 Cobot Decision Engine
@@ -60,40 +60,87 @@ SlowFast R50 pre-trained on the MECCANO industrial egocentric dataset is used as
 
 ### Semantic Action Grouping
 
-72 fine-grained action classes were analyzed and regrouped into 10 semantically coherent categories based on industrial relevance and visual discriminability, validated through intra/inter-class cosine similarity analysis. The grouping demonstrates a discriminability ratio of 2.75, confirming the quality of the learned representations.
+72 fine-grained action classes were systematically analyzed and regrouped into 2 semantically meaningful categories based on industrial risk and visual discriminability, validated through intra/inter-class cosine similarity analysis (ratio 2.75).
 
-### BiGRU Dual-Head with Temporal Attention
+| Class | Actions | Industrial Role |
+|-------|---------|----------------|
+| NON-CRITICAL | take, put, pull, check, browse | Preparation and verification |
+| CRITICAL | fit, plug, tighten, loosen, align | Precision assembly — high error risk |
 
-A bidirectional GRU with temporal attention mechanism processes variable-length action sequences. The dual-head architecture simultaneously outputs frame-level action predictions and a continuous anomaly score, enabling both classification and detection in a single forward pass.
+### BiGRU Dual-Head with Temporal Attention and Residual Blocks
+
+A bidirectional GRU with temporal attention mechanism and residual connections processes variable-length action sequences. The dual-head architecture simultaneously outputs frame-level action predictions and a continuous anomaly score.
 
 ```
-Input projection : Linear(2304, 256) + LayerNorm + ReLU + Dropout
-BiGRU            : hidden=256, layers=2, bidirectional
+Input projection : Linear(2304, 512) + LayerNorm + GELU + ResidualBlock
+BiGRU            : hidden=512, layers=2, bidirectional → 1024-dim
 Temporal Attention: context-aware frame weighting
-Action Head      : frame-level classification
-Anomaly Head     : continuous anomaly scoring [0, 1]
+Action Head      : ResidualBlock → Linear(512, 2)
+Anomaly Head     : Linear(1024, 1) + Sigmoid
 ```
+
+### PSR Error Frame Masking
+
+PSR labels with errors (163 annotated errors across 47 recordings) were used to mask erroneous frames during training, ensuring the BiGRU learns exclusively from correctly executed procedures. This produces cleaner Mahalanobis prototypes and improves anomaly detection.
 
 ### Viterbi Temporal Decoding
 
-A Viterbi decoder with a transition matrix learned from training sequences enforces procedural consistency. Laplace smoothing and minimum segment duration constraints prevent over-segmentation and improve temporal coherence of predictions.
+A Viterbi decoder with a transition matrix learned from training sequences enforces procedural consistency. The highly stable transition matrix (95% self-transition probability) effectively flags sequence deviations as anomalies.
 
 ### Mahalanobis Prototype Bank
 
-Class prototypes are built from GRU hidden state representations of training sequences. Per-frame Mahalanobis distances to the nearest prototype provide a calibrated anomaly score, forming the basis of the cobot decision engine without requiring any error labels at training time.
+Class prototypes are built from GRU hidden state representations (1024-dim) of normal training sequences, reduced via PCA-64 (93.3% variance explained). Per-frame Mahalanobis distances provide calibrated anomaly scores without requiring error labels at training time.
+
+---
+
+## Results
+
+### Action Recognition (val set, 2 semantic classes)
+
+| Method | F1 Macro | F1 Weighted |
+|--------|----------|-------------|
+| LinearSVC frame-level | 0.096 | 0.258 |
+| BiGRU 72 classes | 0.097 | — |
+| BiGRU 10 classes | 0.291 | — |
+| BiGRU 3 classes | 0.463 | — |
+| BiGRU 2 classes (final) | 0.663 | 0.701 |
+
+### Anomaly Detection (val set, PSR error labels)
+
+| Method | AUC-ROC |
+|--------|---------|
+| Isolation Forest PCA64 | 0.658 |
+| Mahalanobis PCA64 | 0.668 |
+| Mahalanobis per operator | 0.673 |
+| Viterbi log-likelihood | 0.751 |
+| Combined Mahalanobis + Viterbi | 0.768 |
+
+### Error Type Analysis
+
+| Error Type | Frames | AUC-ROC |
+|------------|--------|---------|
+| Incorrectly installed | 124 | 0.604 |
+| Remove (correction) | 705 | 0.676 |
+
+### Feature Discriminability
+
+| Metric | Value |
+|--------|-------|
+| Intra-class cosine similarity | 0.031 |
+| Inter-class cosine similarity | 0.011 |
+| Ratio intra/inter | 2.75 |
+| PCA-64 variance explained | 93.3% |
 
 ---
 
 ## Cobot Decision Engine
 
-The decision engine combines action predictions, Viterbi consistency, and Mahalanobis anomaly scores into four actionable intervention levels:
-
 | Decision | Trigger | Cobot Response |
 |----------|---------|----------------|
-| NORMAL | Action recognized, sequence consistent, low anomaly score | Continue procedure |
-| MONITOR | Moderate anomaly or BiGRU/Viterbi disagreement | Increase observation frequency |
-| PAUSE | Action outside expected sequence or elevated anomaly | Stop and request operator confirmation |
-| STOP | Critical anomaly score, potential execution error | Full stop, supervisor alert |
+| NORMAL | Low anomaly score, sequence consistent | Continue procedure |
+| MONITOR | Moderate anomaly or BiGRU/Viterbi disagreement | Increase monitoring |
+| PAUSE | Action outside expected sequence | Stop, request confirmation |
+| STOP | Critical anomaly score | Full stop, supervisor alert |
 
 ---
 
@@ -101,35 +148,16 @@ The decision engine combines action predictions, Viterbi consistency, and Mahala
 
 **IndustReal** — Schoonbeek et al., WACV 2024
 
-A multimodal egocentric dataset for procedure step recognition in industrial-like settings, containing video, depth, stereo, ambient light, gaze, hand and pose data.
-
 | Property | Value |
 |----------|-------|
 | Total recordings | 84 egocentric videos |
 | Operators | 27 participants |
-| Procedures | Assembly and maintenance |
-| Original action classes | 72 |
-| Semantic classes (this work) | 10 |
-| Annotations | Action recognition, procedure step recognition, procedural errors |
+| Train split | 36 recordings + 32 test recordings |
+| Val split | 16 recordings (5 operators, never seen) |
+| Original action classes | 72 → regrouped to 2 |
+| Annotated errors | 163 across 47 recordings |
 
 Reference: [https://github.com/TimSchoonbeek/IndustReal](https://github.com/TimSchoonbeek/IndustReal)
-
----
-
-## Action Classes
-
-| ID | Class | Semantic Group |
-|----|-------|---------------|
-| 0 | TAKE | Grasping any component |
-| 1 | PUT | Placing any component |
-| 2 | FIT_PIN | Pin insertion and fitting |
-| 3 | FIT_NUT | Nut and washer assembly |
-| 4 | FIT_WHEEL | Wheel, brace, wing assembly |
-| 5 | PULL | Component removal |
-| 6 | LOOSEN | Fastener loosening |
-| 7 | TIGHTEN | Fastener tightening |
-| 8 | ALIGN | Object alignment |
-| 9 | CHECK | Instruction and verification |
 
 ---
 
@@ -151,6 +179,7 @@ pandas
 tqdm
 scipy
 matplotlib
+seaborn
 ```
 
 ---
@@ -170,7 +199,7 @@ pip install -r requirements.txt
 ### Feature Extraction
 
 ```python
-BATCH      = 'train_p1'  # train_p1, train_p2, train_p3, train_p4, val_p1, val_p2
+BATCH      = 'train_p1'
 SF_WEIGHTS = 'checkpoints/meccano_slowfast_mapped_clean.pth'
 FEAT_DIR   = 'data/features/'
 ```
@@ -189,7 +218,7 @@ PREP_DIR       = 'data/preprocessing/'
 from pipeline import CobotDecisionEngine
 
 engine = CobotDecisionEngine(
-    bigru_checkpoint = 'checkpoints/bigru_best_10classes.pth',
+    bigru_checkpoint = 'checkpoints/bigru_2classes_best.pth',
     scaler_path      = 'checkpoints/scaler.pkl',
     stride_map_path  = 'data/stride_map_train.pkl'
 )
