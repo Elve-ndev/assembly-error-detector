@@ -268,14 +268,15 @@ Reference: [https://github.com/TimSchoonbeek/IndustReal](https://github.com/TimS
 ```
 project/
 ├── notebooks/
+│   ├── EDA.ipynb
 │   ├── 01_slowfast_extraction.ipynb
 │   ├── 02_bigru_preprocessing.ipynb
 │   ├── 03_bigru_training.ipynb
 │   └── 04_anomaly_detection_aucroc.ipynb
 ├── demo_rerun.py
 ├── checkpoints/
-│   ├── meccano_slowfast_mapped_clean.pth
-│   ├── bigru_2classes_best.pth
+│   ├── meccano_slowfast_mapped_clean.pth // too heavy check ## Checkpoints & Data
+│   ├── bigru_2classes_best.pth // too heavy check ## Checkpoints & Data
 │   └── scaler.pkl
 ├── data/
 │   ├── stride_map_train.pkl
@@ -308,8 +309,15 @@ Pillow
 ```
 
 ---
+## Checkpoints & Data
 
-## Installation
+Model weights and preprocessing files are hosted on Kaggle (public datasets):
+
+| File | Kaggle Dataset | Description |
+|------|---------------|-------------|
+| `bigru_2classes_best.pth` | [hibabou/checkpoint0-66](https://kaggle.com/datasets/hibabou/checkpoint0-66) | BiGRU dual-head trained on 68 recordings, F1=0.663 |
+| `meccano_slowfast_mapped_clean.pth` | [hibabou/slowfast-weights](https://www.kaggle.com/datasets/hibabou/poidsmecano) | SlowFast R50 pre-trained on MECCANO, mapped to IndustReal |
+##installation
 
 ```bash
 git clone https://github.com/Elve-ndev/cobot-assembly-detection
