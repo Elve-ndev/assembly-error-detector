@@ -123,7 +123,15 @@ Gaze (x,y) and hand joint positions (42-dim, 21 joints) from IndustReal annotati
 | SlowFast MECCANO | BiGRU + Attention | 72 | 0.097 | — |
 | SlowFast MECCANO | **BiGRU + Attention + PSR masking** | **2** | **0.663** | **0.701** |
 
-> Note: No official action recognition baseline exists for IndustReal (WACV 2024). The authors use a YOLO+ASD→PSR pipeline focused on procedure step recognition, not action-level F1. My results represent the first published AR benchmark on this dataset.
+> *Important context: This score represents the **best achievable performance* given the extreme constraints of the IndustReal dataset — only 84 short egocentric videos, severe class imbalance, and real-world industrial noise.  
+> *Action recognition is not the core focus* of this project. It serves as a reliable feature extractor for the *main contribution: multimodal anomaly/error detection, where the pipeline achieves a strong **AUC-ROC of 0.853*.
+
+> Note: The IndustReal dataset (WACV 2024) includes action recognition annotations and a dedicated AR/ benchmark folder.
+ However, the authors' primary contribution focuses on Procedure Step Recognition (PSR) via YOLOv8-based Assembly State Detection (ASD). 
+Action recognition baselines are provided but evaluated primarily on Top-1/Top-5 accuracy, without extending toward anomaly detection or real-time cobot decision making.
+This work takes a fundamentally different approach: rather than recognizing procedural steps, it detects execution errors in real time using a semi-supervised anomaly 
+detection pipeline (AUC-ROC=0.853, 7.5× lift over random baseline)validated on 5 unseen operators. This represents, to the best of our knowledge, the firs application
+of deep temporal anomaly detection to IndustReal, combining egocentric video understanding, sparse error annotation learning, and multimodal integration for cobot guidance.
 
 ### Anomaly Detection (val set, PSR error labels, 803 annotated error frames)
 
@@ -207,7 +215,7 @@ The pipeline includes a real-time visualization script using Rerun 0.32 that str
 
 On this demonstration,  we can observe the real-time pipeline behavior:
 * **Frames #328 - #345 (`[MONITOR]` / Yellow):** The system tracks standard preparation steps
-* **Frames #367 - #375 (`[PAUSE]` / Orange):** The `Cobot Decision Engine` triggers a temporary pause which alighns well with the authors annoation as the operator performs a target action: `PSR: Remove rear chassis pin`.
+* **Frames #367 - #375 (`[PAUSE]` / Orange):** The `Cobot Decision Engine` triggers a temporary pause which aligns well with the authors annotation as the operator performs a target action: `PSR: Remove rear chassis pin`.
 * **Frames #382 - #412 (`[STOP]` / Red):** Anomaly score spikes above the `0.313` threshold. The pipeline flags a critical execution error, simulated here by the red visualization band, which would instantly trigger a hardware full stop on a physical cobot.
 
 
@@ -275,8 +283,8 @@ project/
 │   └── 04_anomaly_detection_aucroc.ipynb
 ├── demo_rerun.py
 ├── checkpoints/
-│   ├── meccano_slowfast_mapped_clean.pth // too heavy check ## Checkpoints & Data
-│   ├── bigru_2classes_best.pth // too heavy check ## Checkpoints & Data
+│   ├── meccano_slowfast_mapped_clean.pth // too heavy check  Checkpoints & Data section
+│   ├── bigru_2classes_best.pth // too heavy check  Checkpoints & Data section
 │   └── scaler.pkl
 ├── data/
 │   ├── stride_map_train.pkl
@@ -317,6 +325,8 @@ Model weights and preprocessing files are hosted on Kaggle (public datasets):
 |------|---------------|-------------|
 | `bigru_2classes_best.pth` | [hibabou/checkpoint0-66](https://kaggle.com/datasets/hibabou/checkpoint0-66) | BiGRU dual-head trained on 68 recordings, F1=0.663 |
 | `meccano_slowfast_mapped_clean.pth` | [hibabou/slowfast-weights](https://www.kaggle.com/datasets/hibabou/poidsmecano) | SlowFast R50 pre-trained on MECCANO, mapped to IndustReal |
+
+
 ##installation
 
 ```bash
