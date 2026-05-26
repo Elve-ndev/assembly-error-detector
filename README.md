@@ -326,8 +326,13 @@ Model weights and preprocessing files are hosted on Kaggle (public datasets):
 | `bigru_2classes_best.pth` | [hibabou/checkpoint0-66](https://kaggle.com/datasets/hibabou/checkpoint0-66) | BiGRU dual-head trained on 68 recordings, F1=0.663 |
 | `meccano_slowfast_mapped_clean.pth` | [hibabou/slowfast-weights](https://www.kaggle.com/datasets/hibabou/poidsmecano) | SlowFast R50 pre-trained on MECCANO, mapped to IndustReal |
 
+## Future Work & Improvements
 
-##installation
+- *Model optimization*: ONNX export + INT8 quantization for edge deployment on robotic hardware (Jetson).
+- *ROS2 integration*: Create a ROS2 node for seamless simulation and real cobot interfacing.
+- *Larger-scale validation*: Test on bigger industrial datasets if available.
+
+## installation
 
 ```bash
 git clone https://github.com/Elve-ndev/cobot-assembly-detection
