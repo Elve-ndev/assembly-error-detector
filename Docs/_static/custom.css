@@ -1,0 +1,20 @@
+/* Cobot Assembly Error Detection — custom RTD styles */
+
+/* Badge row in index */
+img[alt="GitHub"], img[alt*="Kaggle"], img[alt="Python"],
+img[alt="PyTorch"], img[alt="License"] {
+  margin: 0 2px;
+  vertical-align: middle;
+}
+
+/* Highlight critical/stop rows in tables */
+table td:first-child {
+  font-family: var(--font-stack--monospace, monospace);
+  font-size: 0.85em;
+}
+
+/* Video container fallback */
+video {
+  border-radius: 6px;
+  max-width: 100%;
+}
