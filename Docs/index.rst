@@ -46,6 +46,7 @@ and multimodal anomaly detection.
 
    overview
    installation
+   discussion
 
 .. toctree::
    :maxdepth: 2
