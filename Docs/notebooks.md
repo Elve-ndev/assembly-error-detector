@@ -51,7 +51,7 @@ Trains the dual-head BiGRU (action + anomaly heads) with temporal attention and 
 
 Runs the full 4-component fusion pipeline (semi-supervised LR + prototype ratio + Mahalanobis RGB + Mahalanobis gaze), computes AUC-ROC curves, ablation study, and cobot decision thresholds.
 
-[![Open on Kaggle](https://img.shields.io/badge/Kaggle-Open%20notebook-20BEFF?logo=kaggle)](https://www.kaggle.com/datasets/hibabou/checkpoint0-66)
+[![Open on Kaggle](https://img.shields.io/badge/Kaggle-Open%20notebook-20BEFF?logo=kaggle)]((https://www.kaggle.com/code/hibabou/auc-roc))
 
 ---
 
