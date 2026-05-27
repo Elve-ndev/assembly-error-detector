@@ -11,7 +11,7 @@ All notebooks are available on Kaggle.
 
 Dataset exploration: recording statistics, action class distribution, error annotation density, gaze and hand joint coverage, stride map validation.
 
-[![Open on Kaggle](https://img.shields.io/badge/Kaggle-Open%20notebook-20BEFF?logo=kaggle)](https://www.kaggle.com/datasets/hibabou/checkpoint0-66)
+[![Open on Kaggle](https://img.shields.io/badge/Kaggle-Open%20notebook-20BEFF?logo=kaggle)](https://www.kaggle.com/code/hibabou/eda-ipynb)
 
 ---
 
@@ -21,7 +21,7 @@ Dataset exploration: recording statistics, action class distribution, error anno
 
 Loads SlowFast R50 with MECCANO weights, registers a forward hook on `blocks.4`, processes all 84 recordings, and saves 2304-dim feature tensors per frame to `data/features/`.
 
-[![Open on Kaggle](https://img.shields.io/badge/Kaggle-Open%20notebook-20BEFF?logo=kaggle)](https://www.kaggle.com/code/hibabou/extraction))
+[![Open on Kaggle](https://img.shields.io/badge/Kaggle-Open%20notebook-20BEFF?logo=kaggle)](https://www.kaggle.com/code/hibabou/slowfast-extraction))
 
 ---
 
@@ -53,7 +53,7 @@ Runs the full 4-component fusion pipeline (semi-supervised LR + prototype ratio 
 
 [![Open on Kaggle](https://img.shields.io/badge/Kaggle-Open%20notebook-20BEFF?logo=kaggle)](https://www.kaggle.com/code/hibabou/auc-roc)
 
-[![Open on Kaggle](https://img.shields.io/badge/Kaggle-Open%20notebook-20BEFF?logo=kaggle)]((https://www.kaggle.com/code/hibabou/auc-roc))
+
 
 ---
 
