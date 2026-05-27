@@ -7,10 +7,14 @@ Cobot Assembly Error Detection Pipeline
 
    <div style="background:#1a1a2e;border-radius:10px;padding:1.5rem 2rem;margin-bottom:2rem;color:#eee;font-family:monospace;font-size:0.85rem;">
      <strong style="color:#e94560;font-size:1.1rem;">🤖 Real-time industrial assembly error detection</strong><br><br>
-     <span style="color:#a8d8ea;">AUC-ROC: <strong style="color:#fff">0.853</strong></span> &nbsp;|&nbsp;
-     <span style="color:#a8d8ea;">TPR@FPR=10%: <strong style="color:#fff">67.9%</strong></span> &nbsp;|&nbsp;
-     <span style="color:#a8d8ea;">Error detection rate: <strong style="color:#fff">75.2%</strong></span>
+
    </div>
+
+.. raw:: html
+
+   <video width="100%" controls autoplay loop muted>
+     <source src="https://github.com/user-attachments/assets/3f64cb51-ec63-4741-b399-d35b3f75e13b" type="video/mp4">
+   </video>
 
    <p style="margin-bottom:1rem;">
      <a href="https://github.com/Elve-ndev/cobot-assembly-detection" target="_blank">
