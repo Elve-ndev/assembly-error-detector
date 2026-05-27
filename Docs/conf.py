@@ -41,7 +41,9 @@ myst_enable_extensions = [
     "colon_fence",
     "deflist",
     "tasklist",
+    "html_image",
 ]
+myst_html_allow_raw = True
 
 autodoc_default_options = {
     "members": True,
