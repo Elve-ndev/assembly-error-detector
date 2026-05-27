@@ -13,65 +13,71 @@
 │              Feature Extraction (SlowFast R50)                   │
 │  - MECCANO pre-trained weights                                   │
 │  - Hook at blocks.4: slow + fast pathways                        │
-│  - Output: 2304-dimensional feature vectors                      │
+│  - slow: [B, 2048, 8, 7, 7] + fast: [B, 256, 32, 7, 7]        │
+│  - avg spatial + concat → 2304-dim per frame                     │
 └────────────────────────────┬────────────────────────────────────┘
                              │
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│              Preprocessing & Normalization                        │
-│  - StandardScaler (fit on training data)                         │
-│  - Outlier clipping (±3σ)                                        │
-│  - Missing value handling                                        │
+│              Adaptive Stride Mapping + Normalization             │
+│  - Per-recording stride/f_min/n_feats alignment                  │
+│  - StandardScaler (fit on train+test, 68 recordings)             │
+│  - Outlier clipping [-5, +5]                                     │
 └────────────────────────────┬────────────────────────────────────┘
                              │
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │         BiGRU Dual-Head with Temporal Attention                  │
 │                                                                   │
-│  Input: normalized features                                      │
-│  BiGRU: 2 layers, hidden=256, bidirectional                     │
-│  Attention: frame-level weights [0, 1]                          │
+│  Linear(2304→512) + LayerNorm + GELU + ResidualBlock            │
+│  BiGRU: hidden=512, layers=2, bidirectional → 1024-dim          │
+│  Temporal Attention: context-aware frame weighting               │
+│  PSR error masking: 163 errors masked during training            │
 │                                                                   │
-│  ├─→ Head 1: Action Classification                              │
-│  │   (softmax over 10 semantic classes)                          │
+│  ├─→ Action Head: ResidualBlock → Linear(512, 2)                │
+│  │   NON-CRITICAL / CRITICAL  |  F1 Macro = 0.663               │
 │  │                                                                │
-│  └─→ Head 2: Anomaly Scoring                                    │
-│      (sigmoid output in [0, 1])                                  │
-└──┬────────────────────────────────────────────────────┬──────────┘
-   │                                                    │
-   ▼                                                    ▼
-┌──────────────────────────┐  ┌──────────────────────────────────┐
-│  Viterbi Decoder         │  │  Mahalanobis Anomaly Detection   │
-│                          │  │                                  │
-│ - Learned transitions    │  │ - Prototype bank (training data) │
-│ - Smoothing (Laplace)    │  │ - Per-class Mahalanobis dist.   │
-│ - Min segment duration   │  │ - Nearest prototype scoring     │
-│                          │  │                                  │
-│ Output:                  │  │ Output:                          │
-│ Coherent action seq.     │  │ Unsupervised anomaly score      │
-└──────────────────────────┘  └──────────────────────────────────┘
-           │                              │
-           └──────────────┬───────────────┘
-                          │
-                          ▼
+│  └─→ Anomaly Head: Linear(1024, 1) + Sigmoid                   │
+│      continuous score [0, 1]                                     │
+└──┬──────────────────────────────────────────────┬───────────────┘
+   │                                              │
+   ▼                                              ▼
+┌──────────────────────────┐  ┌──────────────────────────────────────┐
+│  GRU Hidden States       │  │  Multimodal Features                 │
+│  PCA-64 (93.3% variance) │  │  Gaze (x,y) + Hands (42-dim)        │
+└──────────┬───────────────┘  └─────────────────┬────────────────────┘
+           │                                     │
+           ▼                                     ▼
+┌──────────────────────────────────────────────────────────────────┐
+│              Anomaly Detection Stack                              │
+│                                                                   │
+│  Semi-supervised LR    (w=0.5) → AUC = 0.824                    │
+│  Prototype Ratio       (w=0.3) → AUC = 0.831                    │
+│  Mahalanobis RGB PCA64 (w=0.1) → AUC = 0.668                    │
+│  Mahalanobis Gaze      (w=0.1) → AUC = 0.592                    │
+│  Temporal Smoothing    W=20 frames                                │
+│                                                                   │
+│  Weights: grid search over val set (AUC-ROC maximization)        │
+│  Final AUC-ROC = 0.853 | TPR@FPR=10% = 0.679                    │
+└────────────────────────────┬─────────────────────────────────────┘
+                             │
+                             ▼
         ┌─────────────────────────────────────┐
         │   Cobot Decision Engine             │
         │                                     │
-        │  Decision Logic:                    │
-        │  - Integrate: action + consistency  │
-        │  - Threshold: anomaly scores        │
-        │  - Output: NORMAL / MONITOR /       │
-        │            PAUSE / STOP             │
-        └─────────────────────────────────────┘
-                          │
-                          ▼
-        ┌─────────────────────────────────────┐
-        │   Cobot Intervention                │
+        │  STOP    : score ≥ 0.313 (FPR=2%)  │
+        │  PAUSE   : score ≥ 0.261 (FPR=5%)  │
+        │  MONITOR : score ≥ 0.221 (FPR=10%) │
+        │  WATCH   : score ≥ 0.189 (FPR=20%) │
+        │  NORMAL  : score < 0.189            │
         │                                     │
-        │  - Continue procedure               │
-        │  - Increase observation             │
-        │  - Request confirmation             │
-        │  - Full stop + alert                │
+        │  75.2% errors detected (604/803)    │
+        └─────────────────────────────────────┘
+                             │
+                             ▼
+        ┌─────────────────────────────────────┐
+        │   Rerun.io Live Visualization       │
+        │   + Cobot Intervention Command      │
         └─────────────────────────────────────┘
 ```
 
@@ -81,237 +87,222 @@
 
 **Architecture:**
 - Two pathways with different temporal strides:
-  - **Slow pathway**: processes frames at lower frequency, captures semantics
-  - **Fast pathway**: processes all frames, captures motion details
-- Fusion at multiple scales before classification head
+  - **Slow pathway**: low frame rate, captures spatial semantics
+  - **Fast pathway**: high frame rate, captures motion details
+- Hook at blocks.4 before final pooling head
 
 **Configuration:**
 ```python
-backbone = SlowFast(
-    depth=(3, 4, 6, 3),           # ResNet-50 depths
-    num_classes=400,               # ImageNet-pretrained
-    dropout_rate=0.5,
-    norm_layer=nn.BatchNorm3d
-)
-
-# Hook at blocks.4 (before final pooling)
-# Extracts: (slow, fast) concatenated → 2304 dims
+# Hook placement
+hooks = {
+    "s4.pathway0_res2": slow_pathway,   # [B, 2048, 8, 7, 7]
+    "s4.pathway1_res2": fast_pathway,   # [B,  256, 32, 7, 7]
+}
+# avg pool spatial + temporal → concat → 2304-dim
 ```
 
 **Pre-training:**
-- MECCANO dataset (industrial egocentric actions)
-- Weights optimized for assembly/manipulation tasks
+- MECCANO dataset (Ragusa et al., 2021) — industrial egocentric assembly actions
+- Weights remapped to IndustReal feature extraction pipeline
 
-### 2. BiGRU Dual-Head Architecture
+### 2. Adaptive Stride Mapping
 
-**Motivation:**
-- Action classification and anomaly detection are related but distinct tasks
-- Single network can share lower-level representations
-- Dual heads allow independent calibration and thresholding
+Each recording has a different number of extracted features depending on frame count and extraction stride.
 
-**Components:**
+```python
+# Per-recording mapping (example)
+stride_map = {
+    "14_main_2_3": {"stride": 2, "f_min": 33, "n_feats": 824,  "offset": 2624},
+    "05_main_0_1": {"stride": 2, "f_min": 9,  "n_feats": 680,  "offset": 11192},
+    ...
+}
+
+# Frame → feature index
+feat_idx = round((frame_num - f_min) / stride)
+feat_idx = max(0, min(feat_idx, n_feats - 1))
+```
+
+### 3. BiGRU Dual-Head Architecture
 
 ```python
 class BiGRUDualHead(nn.Module):
-    def __init__(self, feature_dim=2304, hidden_dim=256, num_classes=10):
+    def __init__(self, input_dim=2304, hidden_dim=512,
+                 num_classes=2, dropout=0.4):
         super().__init__()
-        
-        # Input projection
+
         self.input_proj = nn.Sequential(
-            nn.Linear(feature_dim, hidden_dim),
+            nn.Linear(input_dim, hidden_dim),
             nn.LayerNorm(hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(0.5)
+            nn.GELU(),
+            nn.Dropout(dropout),
+            ResidualBlock(hidden_dim, dropout)
         )
-        
-        # Bidirectional GRU
+
         self.bigru = nn.GRU(
             input_size=hidden_dim,
             hidden_size=hidden_dim,
             num_layers=2,
             bidirectional=True,
             batch_first=True,
-            dropout=0.3
+            dropout=dropout
         )
-        
-        # Temporal Attention
-        self.attention = TemporalAttention(hidden_dim * 2)
-        
-        # Action Head
-        self.action_head = nn.Linear(hidden_dim * 2, num_classes)
-        
-        # Anomaly Head
+
+        self.norm      = nn.LayerNorm(hidden_dim * 2)
+        self.attention = TemporalAttention(hidden_dim)
+
+        self.action_head = nn.Sequential(
+            ResidualBlock(hidden_dim * 2, dropout),
+            nn.Linear(hidden_dim * 2, num_classes)
+        )
+
         self.anomaly_head = nn.Sequential(
-            nn.Linear(hidden_dim * 2, hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(hidden_dim, 1),
+            nn.Linear(hidden_dim * 2, hidden_dim // 2),
+            nn.GELU(),
+            nn.Linear(hidden_dim // 2, 1),
             nn.Sigmoid()
         )
-    
-    def forward(self, features):
-        # features: (batch, seq_len, 2304)
-        
-        # Project input
-        x = self.input_proj(features)  # (batch, seq_len, 256)
-        
-        # BiGRU encoding
-        gru_out, _ = self.bigru(x)  # (batch, seq_len, 512)
-        
-        # Attention
-        attn_weights = self.attention(gru_out)  # (batch, seq_len, 1)
-        
-        # Action prediction
-        action_logits = self.action_head(gru_out)  # (batch, seq_len, 10)
-        
-        # Anomaly scoring
-        anomaly_scores = self.anomaly_head(gru_out)  # (batch, seq_len, 1)
-        
-        return action_logits, anomaly_scores, attn_weights
+
+    def forward(self, x, lengths=None):
+        x = self.input_proj(x)
+        gru_out, _ = self.bigru(x)
+        gru_out = self.norm(gru_out)
+        attn = self.attention(gru_out)
+        action_logits = self.action_head(gru_out)
+        anomaly_score = self.anomaly_head(gru_out)
+        return action_logits, anomaly_score, attn, gru_out
 ```
 
-### 3. Viterbi Temporal Decoder
+**Training details:**
+- PSR error frames masked (label=-1) during action loss computation
+- Optimizer: AdamW, lr=1e-3, weight_decay=1e-4
+- Early stopping: patience=5 on val F1 macro
+- Parameters: ~10.5M
 
-**Purpose:** Enforce procedural consistency and prevent over-segmentation
+### 4. Semi-supervised Anomaly Detection
 
-**Algorithm:**
-```
-Transition Matrix (learned):
-  T[i, j] = log P(action_j | action_i)
-  
-Per-frame costs:
-  C[t, j] = -log P(action_j | features_t)
-  
-Viterbi recursion:
-  V[t, j] = min_i { V[t-1, i] + T[i, j] + C[t, j] }
-  
-Backtracking:
-  optimal_path = argmin V[T, :]
-  + segment duration constraints
-```
+**Training data:**
+- 33,920 normal frames (train set, no errors)
+- 1,696 annotated error frames (PSR labels, train set)
+- Ratio 1:20 (errors:normal) — selected by grid search
 
-**Parameters:**
-- Laplace smoothing: α = 1.0 (prevent zero transitions)
-- Minimum segment duration: 3 frames (prevent flickering)
-- Transition threshold: only allow transitions with P > 0.01
+**Feature space:**
+- GRU hidden states (1024-dim) → PCA-64 (93.3% variance explained)
+- StandardScaler applied before PCA
 
-### 4. Mahalanobis Anomaly Detection
-
-**Prototype Building (Training):**
-
-1. For each action class:
-   - Collect all GRU hidden states for frames labeled with that class
-   - Compute class mean: μ_c = mean(h_c)
-   - Compute covariance: Σ_c = cov(h_c)
-
-2. Store: {μ_c, Σ_c}^C_{c=1}
-
-**Scoring (Inference):**
-
-```
-For each frame with hidden state h_t:
-  1. Find nearest prototype:
-     k = argmin_c ||μ_c - h_t||²
-  
-  2. Compute Mahalanobis distance:
-     d_t = sqrt((h_t - μ_k)^T * Σ_k^{-1} * (h_t - μ_k))
-  
-  3. Normalize anomaly score:
-     anomaly_score = sigmoid((d_t - threshold) / scale)
+**Classifier:**
+```python
+clf = LogisticRegression(max_iter=1000, C=0.01)
+clf.fit(X_train_pca64, y_train)  # y=0 normal, y=1 error
+scores = clf.predict_proba(X_val_pca64)[:, 1]
+# AUC-ROC = 0.824
 ```
 
-### 5. Cobot Decision Engine
-
-**Decision Logic:**
+### 5. Prototype Ratio Score
 
 ```python
-def decide(action_logit, anomaly_score, viterbi_action, bigru_action):
-    
-    action_conf = softmax(action_logit).max()
-    consistency = (viterbi_action == bigru_action)
-    
-    if anomaly_score > CRITICAL_THRESHOLD:
-        return "STOP", "Critical anomaly detected"
-    
-    elif anomaly_score > PAUSE_THRESHOLD:
-        return "PAUSE", f"Elevated anomaly: {anomaly_score:.2f}"
-    
-    elif anomaly_score > MONITOR_THRESHOLD or not consistency:
-        return "MONITOR", "Moderate anomaly or sequence inconsistency"
-    
-    elif action_conf > CONFIDENCE_THRESHOLD:
-        return "NORMAL", f"Action: {action_name}"
-    
-    else:
-        return "MONITOR", "Low confidence action prediction"
+# Prototypes built from training data
+proto_normal = X_train_normal_pca64.mean(axis=0)
+proto_error  = X_train_error_pca64.mean(axis=0)
+
+# Per-frame score
+dist_normal = mahalanobis(feat, proto_normal, inv_cov_normal)
+dist_error  = mahalanobis(feat, proto_error,  inv_cov_error)
+ratio_score = dist_normal / (dist_error + 1e-8)
+# AUC-ROC = 0.831
 ```
 
-**Thresholds:**
-- CRITICAL_THRESHOLD = 0.85
-- PAUSE_THRESHOLD = 0.65
-- MONITOR_THRESHOLD = 0.45
-- CONFIDENCE_THRESHOLD = 0.70
+### 6. Final Score Combination
+
+```python
+from scipy.ndimage import uniform_filter1d
+
+final_score = uniform_filter1d(
+    0.5 * norm(semi_supervised_score) +
+    0.3 * norm(ratio_score)           +
+    0.1 * norm(mahalanobis_rgb_score) +
+    0.1 * norm(mahalanobis_gaze_score),
+    size=20  # temporal smoothing W=20
+)
+# AUC-ROC = 0.853
+```
+
+Weights selected by grid search over val set maximizing AUC-ROC.
+
+### 7. Cobot Decision Engine
+
+```python
+THRESHOLDS = {
+    "STOP"   : 0.313,  # FPR=2%
+    "PAUSE"  : 0.261,  # FPR=5%
+    "MONITOR": 0.221,  # FPR=10%
+    "WATCH"  : 0.189,  # FPR=20%
+}
+
+def decide(score):
+    if score >= THRESHOLDS["STOP"]:    return "STOP"
+    if score >= THRESHOLDS["PAUSE"]:   return "PAUSE"
+    if score >= THRESHOLDS["MONITOR"]: return "MONITOR"
+    if score >= THRESHOLDS["WATCH"]:   return "WATCH"
+    return "NORMAL"
+```
+
+Thresholds derived from ROC curve at fixed FPR operating points.
 
 ## Data Flow: Training vs. Inference
 
 ### Training Pipeline
 
 ```
-Raw Video → Frame Sampling (30 FPS) → Optical Flow (optional)
+Raw Video → SlowFast Feature Extraction (frozen)
     ↓
-Feature Extraction (SlowFast, frozen weights)
+Adaptive stride mapping + StandardScaler
     ↓
-GRU Encoding → Dual Heads (action + anomaly)
+BiGRU Dual-Head training
+  - PSR error frames masked (label=-1)
+  - Action loss + Anomaly loss
     ↓
-Loss computation (action + anomaly + regularization)
+Collect GRU hidden states → PCA-64
     ↓
-Backprop through BiGRU (SlowFast frozen)
+Semi-supervised LR training (1696 errors + 33920 normal)
+Prototype Ratio computation (normal + error prototypes)
+Mahalanobis bank (RGB + Gaze + Hands)
     ↓
-Collect GRU hidden states → Build Mahalanobis prototypes
-    ↓
-Save: BigRU weights + prototype bank + scalers
+Save: BiGRU weights + scaler + stride_map +
+      LR classifier + PCA + prototypes
 ```
 
 ### Inference Pipeline
 
 ```
-Live egocentric video stream (30 FPS)
+Live egocentric video (30 FPS)
     ↓
-Real-time feature extraction (SlowFast)
+SlowFast feature extraction (2304-dim)
     ↓
-Feature normalization (using training scalers)
+Stride-aligned normalization
     ↓
-BiGRU forward pass → action + anomaly predictions
+BiGRU forward → hidden states
     ↓
-Viterbi decoding (1-frame latency)
+Semi-supervised LR + Prototype Ratio + Mahalanobis
     ↓
-Mahalanobis anomaly scoring
+Weighted combination + temporal smoothing W=20
     ↓
-Decision engine → NORMAL / MONITOR / PAUSE / STOP
+Threshold → NORMAL / WATCH / MONITOR / PAUSE / STOP
     ↓
-Cobot intervention command
-    ↓
-Latency: ~33ms per frame (30 FPS real-time capable)
+Rerun.io overlay + Cobot intervention
 ```
 
-## Performance Characteristics
+## Performance Summary
 
-| Metric | Value | Notes |
-|--------|-------|-------|
-| Action Accuracy | ~85% | 10 semantic classes |
-| Anomaly F1-Score | ~0.82 | Precision vs. Recall trade-off |
-| Inference Latency | 33ms | Per-frame on RTX 3090 |
-| Throughput | 30 FPS | Real-time capable |
-| Memory Footprint | ~2GB | Model + feature buffer |
-| Feature Extraction | 15ms | SlowFast backbone |
-| BiGRU Forward | 5ms | 2-layer bidirectional |
-| Decision Engine | 1ms | Threshold logic |
-
-## Edge Device Deployment
-
-For deployment on collaborative robots:
-
-- **Quantization**: INT8 quantization reduces model size by 4x
-- **Distillation**: Smaller BiGRU (1 layer, hidden=128) for edge devices
-- **Batch processing**: Accumulate frames → batch inference for efficiency
-- **GPU requirement**: NVIDIA Jetson Orin (12GB VRAM) or RTX 2060+
+| Component | Metric | Value |
+|-----------|--------|-------|
+| Feature discriminability | Intra/inter ratio | 2.75 |
+| Action recognition | F1 Macro | 0.663 |
+| Action recognition | F1 Weighted | 0.701 |
+| Anomaly detection | AUC-ROC | **0.853** |
+| Anomaly detection | TPR@FPR=10% | 0.679 |
+| Anomaly detection | Average Precision | 0.321 |
+| Anomaly detection | Lift over random | **7.53×** |
+| Error detection | Total detected | 75.2% (604/803) |
+| Error detection | STOP+PAUSE | 53.1% (426/803) |
+| "Remove" errors | Detection rate | ~88% |
+| "Incorrectly installed" | Detection rate | ~20% (RGB limit) |
