@@ -53,7 +53,7 @@ and multimodal anomaly detection.
    :caption: Technical Documentation
 
    architecture
-   api
+   usage
 
 .. toctree::
    :maxdepth: 1
