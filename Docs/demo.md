@@ -39,11 +39,11 @@ Frame #367–#375 aligns precisely with the authors' PSR annotation, validating 
 ---
 ## other examples
 
-```{raw} html
+:::{raw} html
 <video width="100%" controls autoplay loop muted>
   <source src="https://github.com/user-attachments/assets/d319a0ee-b9d1-4e96-9f47-c462616aaba4" type="video/mp4">
 </video>
-```
+:::
 
 
 
