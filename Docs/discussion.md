@@ -31,17 +31,17 @@ Detecting **execution errors** in real-time egocentric video for industrial asse
 
 98 error frames annotated as incorrect part orientation are nearly invisible in RGB. The part looks placed but is rotated — depth features or stereo vision would be required to resolve 3D orientation. This is the main gap in the current detection coverage.
 
-### No online learning
+### ONNX
 
-The prototype bank and LR classifier are fixed at inference time. The system cannot adapt to new operators or assembly variants without retraining.
+The pipeline runs in real time on GPU but has not been benchmarked on edge hardware (Jetson).(ONNX export and INT8 quantization )
 
-### Latency (not yet measured on edge hardware)
+### Class imbalance
 
-The pipeline runs in real time on GPU but has not been benchmarked on edge hardware (Jetson). ONNX export and INT8 quantization are planned but not implemented.
+1,696 annotated error frames against 33,920 normal frames (ratio 1:20). Even with SMOTE and weighted loss, the model is biased toward normal sequences — rare error patterns are underrepresented in the decision boundary.
 
-### Annotation sparsity
+### Dataset size
 
-163 PSR error sequences across 47 recordings means many recording types have zero error labels. The semi-supervised approach mitigates this but does not eliminate the bias.
+84 short recordings is insufficient to draw statistically robust conclusions. The validation set (16 recordings, 5 unseen operators) is too small — performance variance across operators is high and results may not generalize beyond IndustReal.
 
 ---
 
@@ -49,8 +49,7 @@ The pipeline runs in real time on GPU but has not been benchmarked on edge hardw
 
 | Out of scope | Reason |
 |---|---|
-| Depth-based orientation detection | Requires stereo/depth hardware not available in IndustReal splits used |
-| ROS2 integration | Out of scope for a research prototype |
+| ROS2 integration | Requires access to physical cobot hardware and a real time OS which is unavailable during development |
 | Per-operator calibration | Insufficient per-operator samples |
 | Real cobot hardware testing | No access to physical cobot during development |
 
@@ -59,7 +58,7 @@ The pipeline runs in real time on GPU but has not been benchmarked on edge hardw
 ## Future work
 
 - **ONNX + INT8 quantization** for Jetson edge deployment
-- **Depth modality** to resolve 3D orientation errors (currently ~20% detection)
+- **Depth modality and bigger dataset ** to resolve 3D orientation errors 
 - **ROS2 node** for simulation and real cobot interfacing
 - **Larger dataset validation** — if access to factory data becomes available
-- **Online prototype update** — incremental adaptation to new operators
+
