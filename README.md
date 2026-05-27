@@ -360,19 +360,7 @@ VAL_FEAT_DIR   = "data/features/val/"
 PREP_DIR       = "data/preprocessing/"
 ```
 
-### Inference
 
-```python
-from pipeline import CobotDecisionEngine
-
-engine = CobotDecisionEngine(
-    bigru_checkpoint = "checkpoints/bigru_2classes_best.pth",
-    scaler_path      = "checkpoints/scaler.pkl",
-    stride_map_path  = "data/stride_map_train.pkl"
-)
-decision, message = engine.predict(feature_vector, timestamp)
-# Returns: ('NORMAL'|'WATCH'|'MONITOR'|'PAUSE'|'STOP', explanation)
-```
 
 ### Live Visualization
 
