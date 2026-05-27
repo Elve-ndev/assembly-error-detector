@@ -31,7 +31,7 @@ Loads SlowFast R50 with MECCANO weights, registers a forward hook on `blocks.4`,
 
 Applies adaptive stride mapping, StandardScaler fitting, PSR error frame masking, and prepares train/val tensors for BiGRU training.
 
-[![Open on Kaggle](https://img.shields.io/badge/Kaggle-Open%20notebook-20BEFF?logo=kaggle)](https://www.kaggle.com/datasets/hibabou/checkpoint0-66)
+[![Open on Kaggle](https://img.shields.io/badge/Kaggle-Open%20notebook-20BEFF?logo=kaggle)](https://www.kaggle.com/code/hibabou/entrainement))
 
 ---
 
@@ -50,6 +50,8 @@ Trains the dual-head BiGRU (action + anomaly heads) with temporal attention and 
 `notebooks/04_anomaly_detection_aucroc.ipynb`
 
 Runs the full 4-component fusion pipeline (semi-supervised LR + prototype ratio + Mahalanobis RGB + Mahalanobis gaze), computes AUC-ROC curves, ablation study, and cobot decision thresholds.
+
+[![Open on Kaggle](https://img.shields.io/badge/Kaggle-Open%20notebook-20BEFF?logo=kaggle)](https://www.kaggle.com/code/hibabou/auc-roc)
 
 [![Open on Kaggle](https://img.shields.io/badge/Kaggle-Open%20notebook-20BEFF?logo=kaggle)]((https://www.kaggle.com/code/hibabou/auc-roc))
 
