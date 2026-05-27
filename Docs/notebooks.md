@@ -21,7 +21,7 @@ Dataset exploration: recording statistics, action class distribution, error anno
 
 Loads SlowFast R50 with MECCANO weights, registers a forward hook on `blocks.4`, processes all 84 recordings, and saves 2304-dim feature tensors per frame to `data/features/`.
 
-[![Open on Kaggle](https://img.shields.io/badge/Kaggle-Open%20notebook-20BEFF?logo=kaggle)](https://www.kaggle.com/datasets/hibabou/checkpoint0-66)
+[![Open on Kaggle](https://img.shields.io/badge/Kaggle-Open%20notebook-20BEFF?logo=kaggle)](https://www.kaggle.com/code/hibabou/extraction))
 
 ---
 
@@ -41,7 +41,7 @@ Applies adaptive stride mapping, StandardScaler fitting, PSR error frame masking
 
 Trains the dual-head BiGRU (action + anomaly heads) with temporal attention and residual blocks. Logs F1, loss curves, and saves `bigru_2classes_best.pth`.
 
-[![Open on Kaggle](https://img.shields.io/badge/Kaggle-Open%20notebook-20BEFF?logo=kaggle)](https://www.kaggle.com/datasets/hibabou/checkpoint0-66)
+[![Open on Kaggle](https://img.shields.io/badge/Kaggle-Open%20notebook-20BEFF?logo=kaggle)](https://www.kaggle.com/code/hibabou/bigru)
 
 ---
 
