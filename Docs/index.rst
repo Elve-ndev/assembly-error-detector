@@ -68,3 +68,4 @@ and multimodal anomaly detection.
    :caption: Reference
 
    requirements
+   team
