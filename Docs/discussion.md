@@ -27,7 +27,7 @@ Detecting **execution errors** in real-time egocentric video for industrial asse
 
 84 short egocentric recordings is a hard constraint. The validation set (16 recordings) is too small to draw statistically robust conclusions. Performance variance across operators is significant.
 
-### "Incorrectly installed" errors (~20% detection rate)
+### "Incorrectly installed" errors (misdetected)
 
 98 error frames annotated as incorrect part orientation are nearly invisible in RGB. The part looks placed but is rotated — depth features or stereo vision would be required to resolve 3D orientation. This is the main gap in the current detection coverage.
 
