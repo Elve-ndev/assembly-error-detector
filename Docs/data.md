@@ -20,7 +20,7 @@ Download and place both files in `checkpoints/`.
 | Total recordings | 84 egocentric videos |
 | Operators | 27 participants |
 | Train + Test split | 68 recordings (22 operators) |
-| Validation split | 16 recordings (5 unseen operators) |
+| Validation split | 16 recordings  |
 | Action classes | 72 original → 2 semantic groups |
 | Annotated errors | 163 PSR errors (47 recordings) |
 | Modalities available | RGB, Depth, Stereo, Gaze, Hands, Pose, Ambient light |
