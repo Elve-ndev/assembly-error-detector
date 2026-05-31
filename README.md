@@ -114,7 +114,7 @@ Gaze (x,y) and hand joint positions (42-dim, 21 joints) from IndustReal annotati
 
 ## Results
 
-### Action Recognition (val set, 16 recordings, 5 unseen operators)
+### Action Recognition (val set, 16 recordings)
 
 | Backbone | Method | Classes | F1 Macro | F1 Weighted |
 |----------|--------|---------|----------|-------------|
@@ -130,7 +130,7 @@ Gaze (x,y) and hand joint positions (42-dim, 21 joints) from IndustReal annotati
  However, the authors' primary contribution focuses on Procedure Step Recognition (PSR) via YOLOv8-based Assembly State Detection (ASD). 
 Action recognition baselines are provided but evaluated primarily on Top-1/Top-5 accuracy, without extending toward anomaly detection or real-time cobot decision making.
 This work takes a fundamentally different approach: rather than recognizing procedural steps, it detects execution errors in real time using a semi-supervised anomaly 
-detection pipeline (AUC-ROC=0.853, 7.5× lift over random baseline)validated on 5 unseen operators. This represents, to the best of our knowledge, the firs application
+detection pipeline (AUC-ROC=0.853, 7.5× lift over random baseline). This represents, to the best of our knowledge, the firs application
 of deep temporal anomaly detection to IndustReal, combining egocentric video understanding, sparse error annotation learning, and multimodal integration for cobot guidance.
 
 ### Anomaly Detection (val set, PSR error labels, 803 annotated error frames)
@@ -232,7 +232,7 @@ In the AI sector, access to real-world factory data is heavily restricted by ind
 | Total recordings | 84 egocentric videos |
 | Operators | 27 participants |
 | Train + Test split | 68 recordings (22 operators) |
-| Validation split | 16 recordings (5 unseen operators) |
+| Validation split | 16 recordings  |
 | Action classes | 72 original → 2 semantic groups |
 | Annotated errors | 163 PSR errors (47 recordings) |
 | Modalities | RGB, Depth, Stereo, Gaze, Hands, Pose, Ambient light |
