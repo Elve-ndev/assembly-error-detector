@@ -17,9 +17,9 @@ Cobot Assembly Error Detection Pipeline
    </video>
 
    <p style="margin-bottom:1rem;">
-     <a href="https://github.com/Elve-ndev/cobot-assembly-detection" target="_blank">
-       <img src="https://img.shields.io/badge/GitHub-Elve--ndev-black?logo=github" alt="GitHub">
-     </a>
+   <a href="https://github.com/Elve-ndev/assembly-error-detector" target="_blank">
+     <img src="https://img.shields.io/badge/GitHub-Elve--ndev-black?logo=github" alt="GitHub">
+   </a>
      &nbsp;
      <a href="https://www.kaggle.com/datasets/hibabou/checkpoint0-66" target="_blank">
        <img src="https://img.shields.io/badge/Kaggle-BiGRU%20Checkpoint-20BEFF?logo=kaggle" alt="Kaggle BiGRU">
