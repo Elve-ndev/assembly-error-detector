@@ -25,7 +25,7 @@ Detecting **execution errors** in real-time egocentric video for industrial asse
 
 ### Dataset size
 
-84 short egocentric recordings is a hard constraint. The validation set (16 recordings, 5 unseen operators) is too small to draw statistically robust conclusions. Performance variance across operators is significant.
+84 short egocentric recordings is a hard constraint. The validation set (16 recordings) is too small to draw statistically robust conclusions. Performance variance across operators is significant.
 
 ### "Incorrectly installed" errors (~20% detection rate)
 
@@ -41,7 +41,7 @@ The pipeline runs in real time on GPU but has not been benchmarked on edge hardw
 
 ### Dataset size
 
-84 short recordings is insufficient to draw statistically robust conclusions. The validation set (16 recordings, 5 unseen operators) is too small — performance variance across operators is high and results may not generalize beyond IndustReal.
+84 short recordings is insufficient to draw statistically robust conclusions. The validation set (16 recordings) is too small — performance variance across operators is high and results may not generalize beyond IndustReal.
 
 ---
 
