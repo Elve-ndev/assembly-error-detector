@@ -335,7 +335,7 @@ Model weights and preprocessing files are hosted on Kaggle (public datasets):
 ## installation
 
 ```bash
-git clone https://github.com/Elve-ndev/cobot-assembly-detection
+git clone https://github.com/Elve-ndev/assembly-error-detector
 cd cobot-assembly-detection
 pip install -r requirements.txt
 ```
